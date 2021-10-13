@@ -179,6 +179,7 @@ class TelegramBot(object):
 
 
 if __name__ == '__main__':
+
     bot = TelegramBot(TELEGRAM_TOKEN)
     bethunter = Bethunter24(BETHUNTER_TOKEN)
 
