@@ -1,0 +1,84 @@
+version: v1
+kind: simloud-deployment
+boto3_version: 1.10
+kubernetes_version: v1.17
+micro_service_type: kubernetes
+
+cloud_resources:
+  - name: infrastructure-service.iam_master_role
+    env_name_prefix: SIMLOUD_STS_MASTER_ROLE
+    type: iam
+
+environment:
+  - env_name: WORKERS
+    value: 3
+  - env_name: AWS_METADATA_SERVICE_NUM_ATTEMPTS
+    value: 3
+  - env_name: CLOUD_BILLING_SERVICE_HOST
+    value: "http://cloud-billing-service.default.svc.cluster.local"
+  - env_name: SWAGGER_BASE_PATH
+    value: "/aws-proxy-service/"
+  - env_name: SIMLOUD_STS_INTERMEDIATE_ROLE_SESSION_NAME
+    value: "simloud@aws-proxy-service@master-role"
+  - env_name: SIMLOUD_STS_TARGET_ROLE_SESSION_NAME
+    value: "simloud@aws-proxy-service@cross-account-role"
+  - env_name: AWS_DEFAULT_REGION
+    value: "eu-central-1"
+
+external_api:
+  sub_domain: "k8s"
+  base_url: "aws-proxy-service"
+  auth:
+    sub_domain: "auth"
+    type: "vouch"
+  cors:
+    enable_cors: "true"
+    cors-allow-methods: "GET, POST, DELETE, PATCH, OPTIONS"
+    cors-allow-credentials: "true"
+
+
+service:
+  name: aws-proxy-service
+  type: ClusterIP
+  annotations: {}
+  externalPort: 80
+  internalPort: 8080
+
+spec:
+  pod:
+  - name: aws-proxy-service
+  resources:
+    replicas: 2
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+    requests:
+      memory: "500Mi"
+      cpu: "50m"
+    limits:
+      memory: "500Mi"
+      cpu: "1000m"
+  health_check:
+    startupProbe:
+      httpGet:
+        path: /healthz
+        port: 8080
+      initialDelaySeconds: 10
+      timeoutSeconds: 1
+      periodSeconds: 1
+      failureThreshold: 10
+    livenessProbe:
+      tcpSocket:
+        port: 8080
+      timeoutSeconds: 1
+      periodSeconds: 30
+      failureThreshold: 2
+    readinessProbe:
+      httpGet:
+        path: /healthz
+        port: 8080
+      timeoutSeconds: 1
+      periodSeconds: 30
+      failureThreshold: 2
